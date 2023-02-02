@@ -15,7 +15,8 @@ defmodule ExBank.Application do
       # Start the PubSub system
       {Phoenix.PubSub, name: ExBank.PubSub},
       # Start the Endpoint (http/https)
-      ExBankWeb.Endpoint
+      ExBankWeb.Endpoint,
+      {Oban, Application.fetch_env!(:ex_bank, Oban)}
       # Start a worker by calling: ExBank.Worker.start_link(arg)
       # {ExBank.Worker, arg}
     ]

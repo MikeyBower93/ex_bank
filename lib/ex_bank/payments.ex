@@ -1,200 +1,126 @@
 defmodule ExBank.Payments do
-  @moduledoc """
-  The Payments context.
-  """
-
   import Ecto.Query, warn: false
   alias ExBank.Repo
+  alias ExBank.Payments.{Account, Transaction}
+  alias ExBank.Payments.Jobs.SendPaymentViaProvider
 
-  alias ExBank.Payments.Account
-
-  @doc """
-  Returns the list of accounts.
-
-  ## Examples
-
-      iex> list_accounts()
-      [%Account{}, ...]
-
-  """
-  def list_accounts do
-    Repo.all(Account)
+  def send_money(
+        account_id,
+        amount,
+        to_account_number,
+        to_sort_code,
+        to_name
+      ) do
+    try do
+      do_send_money(account_id, amount, to_account_number, to_sort_code, to_name)
+    catch
+      _kind,
+      %Postgrex.Error{
+        postgres: %{
+          constraint: "balance_must_be_positive"
+        }
+      } ->
+        {:error, :not_enough_balance}
+    end
   end
 
-  @doc """
-  Gets a single account.
+  defp do_send_money(
+         account_id,
+         amount,
+         to_account_number,
+         to_sort_code,
+         to_name
+       ) do
+    idempotency_key = Ecto.UUID.generate()
 
-  Raises `Ecto.NoResultsError` if the Account does not exist.
+    result =
+      Ecto.Multi.new()
+      |> prepare_update_balance_step(account_id, amount)
+      |> prepare_create_transaction_step(
+        account_id,
+        amount,
+        to_account_number,
+        to_sort_code,
+        to_name,
+        idempotency_key
+      )
+      |> prepare_payment_job_step(
+        amount,
+        account_id,
+        to_account_number,
+        to_sort_code,
+        to_name,
+        idempotency_key
+      )
+      |> Repo.transaction()
 
-  ## Examples
-
-      iex> get_account!(123)
-      %Account{}
-
-      iex> get_account!(456)
-      ** (Ecto.NoResultsError)
-
-  """
-  def get_account!(id), do: Repo.get!(Account, id)
-
-  @doc """
-  Creates a account.
-
-  ## Examples
-
-      iex> create_account(%{field: value})
-      {:ok, %Account{}}
-
-      iex> create_account(%{field: bad_value})
-      {:error, %Ecto.Changeset{}}
-
-  """
-  def create_account(attrs \\ %{}) do
-    %Account{}
-    |> Account.changeset(attrs)
-    |> Repo.insert()
+    case result do
+      {:ok, %{create_transaction: new_transaction}} -> {:ok, new_transaction}
+      error -> error
+    end
   end
 
-  @doc """
-  Updates a account.
-
-  ## Examples
-
-      iex> update_account(account, %{field: new_value})
-      {:ok, %Account{}}
-
-      iex> update_account(account, %{field: bad_value})
-      {:error, %Ecto.Changeset{}}
-
-  """
-  def update_account(%Account{} = account, attrs) do
-    account
-    |> Account.changeset(attrs)
-    |> Repo.update()
+  defp prepare_update_balance_step(multi, account_id, amount) do
+    Ecto.Multi.update_all(
+      multi,
+      :update_balance,
+      from(a in Account, where: a.id == ^account_id),
+      inc: [balance: -amount]
+    )
   end
 
-  @doc """
-  Deletes a account.
+  defp prepare_create_transaction_step(
+         multi,
+         account_id,
+         amount,
+         to_account_number,
+         to_sort_code,
+         to_name,
+         job_idempotency_key
+       ) do
+    new_transaction_params = %{
+      amount: amount,
+      error: nil,
+      receiver: to_name,
+      receiver_account_number: to_account_number,
+      receiver_sort_code: to_sort_code,
+      state: "PENDING",
+      account_id: account_id,
+      job_idempotency_key: job_idempotency_key
+    }
 
-  ## Examples
-
-      iex> delete_account(account)
-      {:ok, %Account{}}
-
-      iex> delete_account(account)
-      {:error, %Ecto.Changeset{}}
-
-  """
-  def delete_account(%Account{} = account) do
-    Repo.delete(account)
+    Ecto.Multi.insert(
+      multi,
+      :create_transaction,
+      Transaction.changeset(
+        %Transaction{},
+        new_transaction_params
+      )
+    )
   end
 
-  @doc """
-  Returns an `%Ecto.Changeset{}` for tracking account changes.
+  defp prepare_payment_job_step(
+         multi,
+         amount,
+         account_id,
+         to_account_number,
+         to_sort_code,
+         to_name,
+         idempotency_key
+       ) do
+    oban_job_params = %{
+      amount: amount,
+      account_id: account_id,
+      to_account_number: to_account_number,
+      to_sort_code: to_sort_code,
+      to_name: to_name,
+      idempotency_key: idempotency_key
+    }
 
-  ## Examples
-
-      iex> change_account(account)
-      %Ecto.Changeset{data: %Account{}}
-
-  """
-  def change_account(%Account{} = account, attrs \\ %{}) do
-    Account.changeset(account, attrs)
-  end
-
-  alias ExBank.Payments.Transaction
-
-  @doc """
-  Returns the list of transactions.
-
-  ## Examples
-
-      iex> list_transactions()
-      [%Transaction{}, ...]
-
-  """
-  def list_transactions do
-    Repo.all(Transaction)
-  end
-
-  @doc """
-  Gets a single transaction.
-
-  Raises `Ecto.NoResultsError` if the Transaction does not exist.
-
-  ## Examples
-
-      iex> get_transaction!(123)
-      %Transaction{}
-
-      iex> get_transaction!(456)
-      ** (Ecto.NoResultsError)
-
-  """
-  def get_transaction!(id), do: Repo.get!(Transaction, id)
-
-  @doc """
-  Creates a transaction.
-
-  ## Examples
-
-      iex> create_transaction(%{field: value})
-      {:ok, %Transaction{}}
-
-      iex> create_transaction(%{field: bad_value})
-      {:error, %Ecto.Changeset{}}
-
-  """
-  def create_transaction(attrs \\ %{}) do
-    %Transaction{}
-    |> Transaction.changeset(attrs)
-    |> Repo.insert()
-  end
-
-  @doc """
-  Updates a transaction.
-
-  ## Examples
-
-      iex> update_transaction(transaction, %{field: new_value})
-      {:ok, %Transaction{}}
-
-      iex> update_transaction(transaction, %{field: bad_value})
-      {:error, %Ecto.Changeset{}}
-
-  """
-  def update_transaction(%Transaction{} = transaction, attrs) do
-    transaction
-    |> Transaction.changeset(attrs)
-    |> Repo.update()
-  end
-
-  @doc """
-  Deletes a transaction.
-
-  ## Examples
-
-      iex> delete_transaction(transaction)
-      {:ok, %Transaction{}}
-
-      iex> delete_transaction(transaction)
-      {:error, %Ecto.Changeset{}}
-
-  """
-  def delete_transaction(%Transaction{} = transaction) do
-    Repo.delete(transaction)
-  end
-
-  @doc """
-  Returns an `%Ecto.Changeset{}` for tracking transaction changes.
-
-  ## Examples
-
-      iex> change_transaction(transaction)
-      %Ecto.Changeset{data: %Transaction{}}
-
-  """
-  def change_transaction(%Transaction{} = transaction, attrs \\ %{}) do
-    Transaction.changeset(transaction, attrs)
+    Oban.insert(
+      multi,
+      :send_payment_via_provider,
+      SendPaymentViaProvider.new(oban_job_params)
+    )
   end
 end

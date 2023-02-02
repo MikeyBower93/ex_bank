@@ -10,6 +10,7 @@ defmodule ExBank.Payments.Transaction do
     field :receiver_sort_code, :string
     field :state, :string
     field :account_id, :id
+    field :job_idempotency_key, :string
 
     timestamps()
   end
@@ -17,7 +18,24 @@ defmodule ExBank.Payments.Transaction do
   @doc false
   def changeset(transaction, attrs) do
     transaction
-    |> cast(attrs, [:amount, :state, :receiver, :receiver_sort_code, :receiver_account_number, :error])
-    |> validate_required([:amount, :state, :receiver, :receiver_sort_code, :receiver_account_number, :error])
+    |> cast(attrs, [
+      :amount,
+      :state,
+      :receiver,
+      :receiver_sort_code,
+      :receiver_account_number,
+      :error,
+      :job_idempotency_key,
+      :account_id
+    ])
+    |> validate_required([
+      :amount,
+      :state,
+      :receiver,
+      :receiver_sort_code,
+      :receiver_account_number,
+      :job_idempotency_key,
+      :account_id
+    ])
   end
 end

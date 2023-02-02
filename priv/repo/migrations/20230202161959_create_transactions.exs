@@ -9,6 +9,7 @@ defmodule ExBank.Repo.Migrations.CreateTransactions do
       add :receiver_sort_code, :string
       add :receiver_account_number, :string
       add :error, :string
+      add :job_idempotency_key, :string
       add :account_id, references(:accounts, on_delete: :nothing)
 
       timestamps()

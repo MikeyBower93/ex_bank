@@ -45,8 +45,8 @@ defmodule ExBank.Payments do
         idempotency_key
       )
       |> prepare_payment_job_step(
-        amount,
         account_id,
+        amount,
         to_account_number,
         to_sort_code,
         to_name,
@@ -101,8 +101,8 @@ defmodule ExBank.Payments do
 
   defp prepare_payment_job_step(
          multi,
-         amount,
          account_id,
+         amount,
          to_account_number,
          to_sort_code,
          to_name,

@@ -10,7 +10,7 @@ defmodule ExBank.Payments.CreatePaymentRequest do
     to_name: :string
   }
 
-  def sanatize_and_verify(%CreatePaymentRequest{} = create_payment_request) do
+  def verify(%CreatePaymentRequest{} = create_payment_request) do
     {%CreatePaymentRequest{}, @types}
     |> Ecto.Changeset.cast(Map.from_struct(create_payment_request), Map.keys(@types))
     |> case do

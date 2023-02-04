@@ -6,7 +6,7 @@ defmodule ExBank.Payments do
 
   def send_money(%CreatePaymentRequest{} = create_payment_request) do
     with {:valid, verified_create_payment_request} <-
-           CreatePaymentRequest.sanatize_and_verify(create_payment_request),
+           CreatePaymentRequest.verify(create_payment_request),
          response <- do_send_money(verified_create_payment_request) do
       response
     else

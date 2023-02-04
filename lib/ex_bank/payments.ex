@@ -31,32 +31,31 @@ defmodule ExBank.Payments do
          to_sort_code,
          to_name
        ) do
-    idempotency_key = Ecto.UUID.generate()
+    payment_idempotency_key = Ecto.UUID.generate()
 
-    result =
-      Ecto.Multi.new()
-      |> prepare_update_balance_step(account_id, amount)
-      |> prepare_create_transaction_step(
-        account_id,
-        amount,
-        to_account_number,
-        to_sort_code,
-        to_name,
-        idempotency_key
-      )
-      |> prepare_payment_job_step(
-        account_id,
-        amount,
-        to_account_number,
-        to_sort_code,
-        to_name,
-        idempotency_key
-      )
-      |> Repo.transaction()
-
-    case result do
+    Ecto.Multi.new()
+    |> prepare_update_balance_step(account_id, amount)
+    |> prepare_payment_job_step(
+      account_id,
+      amount,
+      to_account_number,
+      to_sort_code,
+      to_name,
+      payment_idempotency_key
+    )
+    |> prepare_create_transaction_step(
+      account_id,
+      amount,
+      to_account_number,
+      to_sort_code,
+      to_name,
+      payment_idempotency_key
+    )
+    |> Repo.transaction()
+    |> case do
       {:ok, %{create_transaction: new_transaction}} -> {:ok, new_transaction}
-      error -> error
+      {:error, _step, %Ecto.Changeset{errors: errors}, _rest} -> {:error, errors}
+      otherwise -> otherwise
     end
   end
 
@@ -76,26 +75,28 @@ defmodule ExBank.Payments do
          to_account_number,
          to_sort_code,
          to_name,
-         job_idempotency_key
+         payment_idempotency_key
        ) do
-    new_transaction_params = %{
-      amount: amount,
-      error: nil,
-      receiver: to_name,
-      receiver_account_number: to_account_number,
-      receiver_sort_code: to_sort_code,
-      state: "PENDING",
-      account_id: account_id,
-      job_idempotency_key: job_idempotency_key
-    }
-
-    Ecto.Multi.insert(
+    Ecto.Multi.run(
       multi,
       :create_transaction,
-      Transaction.changeset(
-        %Transaction{},
-        new_transaction_params
-      )
+      fn repo, %{send_payment_via_provider: %{id: payment_job_id}} ->
+        new_transaction_params = %{
+          amount: amount,
+          error: nil,
+          receiver: to_name,
+          receiver_account_number: to_account_number,
+          receiver_sort_code: to_sort_code,
+          state: "PENDING",
+          account_id: account_id,
+          payment_job_id: payment_job_id,
+          payment_idempotency_key: payment_idempotency_key
+        }
+
+        %Transaction{}
+        |> Transaction.changeset(new_transaction_params)
+        |> repo.insert
+      end
     )
   end
 
@@ -106,7 +107,7 @@ defmodule ExBank.Payments do
          to_account_number,
          to_sort_code,
          to_name,
-         idempotency_key
+         payment_idempotency_key
        ) do
     oban_job_params = %{
       amount: amount,
@@ -114,7 +115,7 @@ defmodule ExBank.Payments do
       to_account_number: to_account_number,
       to_sort_code: to_sort_code,
       to_name: to_name,
-      idempotency_key: idempotency_key
+      payment_idempotency_key: payment_idempotency_key
     }
 
     Oban.insert(

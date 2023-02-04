@@ -10,7 +10,8 @@ defmodule ExBank.Payments.Transaction do
     field :receiver_sort_code, :string
     field :state, :string
     field :account_id, :id
-    field :job_idempotency_key, :string
+    field :payment_idempotency_key, :string
+    field :payment_job_id, :integer
 
     timestamps()
   end
@@ -25,7 +26,8 @@ defmodule ExBank.Payments.Transaction do
       :receiver_sort_code,
       :receiver_account_number,
       :error,
-      :job_idempotency_key,
+      :payment_idempotency_key,
+      :payment_job_id,
       :account_id
     ])
     |> validate_required([
@@ -34,7 +36,8 @@ defmodule ExBank.Payments.Transaction do
       :receiver,
       :receiver_sort_code,
       :receiver_account_number,
-      :job_idempotency_key,
+      :payment_idempotency_key,
+      :payment_job_id,
       :account_id
     ])
   end

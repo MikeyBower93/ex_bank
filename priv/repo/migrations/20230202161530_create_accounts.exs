@@ -10,6 +10,6 @@ defmodule ExBank.Repo.Migrations.CreateAccounts do
     end
 
     create constraint(:accounts, :balance_must_be_positive, check: "balance >= 0")
-    unique_index(:accounts, :customer_name)
+    create unique_index(:accounts, :customer_name)
   end
 end

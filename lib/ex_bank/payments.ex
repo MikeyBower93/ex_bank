@@ -1,9 +1,40 @@
 defmodule ExBank.Payments do
+  @moduledoc """
+  Domain logic for payments based activity.
+  """
+
   import Ecto.Query, warn: false
   alias ExBank.Repo
   alias ExBank.Payments.{Account, Transaction, CreatePaymentRequest}
   alias ExBank.Payments.Jobs.SendPaymentViaProvider
 
+  @doc """
+  Sends payment from an `account_id` to another bank account via a sort code, account number and name.
+
+  Returns `{:ok, %Transaction{}}` where the transaction is the new created transaction.
+  Returns `{:error, errors}` where the errors is a list of errors.
+
+  ## Examples
+
+      iex> ExBank.Payments.send_money(%ExBank.Payments.CreatePaymentRequest{
+          account_id: 1,
+          amount: 75,
+          to_sort_code: "60-00-00",
+          to_account_number: "1234567",
+          to_name: "Bob Robert"
+        })
+      {:ok, %Transaction{...}}
+
+      iex> ExBank.Payments.send_money(%ExBank.Payments.CreatePaymentRequest{
+          account_id: 1,
+          amount: 75,
+          to_sort_code: "60-00-00",
+          to_account_number: "1234567",
+          to_name: ""
+        })
+      {:ok, errors}
+
+  """
   def send_money(%CreatePaymentRequest{} = create_payment_request) do
     with {:valid, verified_create_payment_request} <-
            CreatePaymentRequest.verify(create_payment_request),

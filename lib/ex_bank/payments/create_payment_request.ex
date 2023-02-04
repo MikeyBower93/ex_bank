@@ -1,13 +1,13 @@
 defmodule ExBank.Payments.CreatePaymentRequest do
-  defstruct [:account_id, :amount, :to_account_number, :to_sort_code, :to_name]
+  defstruct [:account_id, :amount, :receiver_account_number, :receiver_sort_code, :receiver_account_name]
   alias ExBank.Payments.CreatePaymentRequest
 
   @types %{
     account_id: :integer,
     amount: :decimal,
-    to_account_number: :string,
-    to_sort_code: :string,
-    to_name: :string
+    receiver_account_number: :string,
+    receiver_sort_code: :string,
+    receiver_account_name: :string
   }
 
   def verify(%CreatePaymentRequest{} = create_payment_request) do

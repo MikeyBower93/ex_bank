@@ -19,18 +19,18 @@ defmodule ExBank.Payments do
       iex> ExBank.Payments.send_money(%ExBank.Payments.CreatePaymentRequest{
           account_id: 1,
           amount: 75,
-          to_sort_code: "60-00-00",
-          to_account_number: "1234567",
-          to_name: "Bob Robert"
+          receiver_sort_code: "60-00-00",
+          receiver_account_number: "1234567",
+          receiver_account_name: "Bob Robert"
         })
       {:ok, %Transaction{...}}
 
       iex> ExBank.Payments.send_money(%ExBank.Payments.CreatePaymentRequest{
           account_id: 1,
           amount: 75,
-          to_sort_code: "60-00-00",
-          to_account_number: "1234567",
-          to_name: ""
+          receiver_sort_code: "60-00-00",
+          receiver_account_number: "1234567",
+          receiver_account_name: ""
         })
       {:ok, errors}
 
@@ -95,17 +95,17 @@ defmodule ExBank.Payments do
          %CreatePaymentRequest{
            account_id: account_id,
            amount: amount,
-           to_account_number: to_account_number,
-           to_sort_code: to_sort_code,
-           to_name: to_name
+           receiver_account_number: receiver_account_number,
+           receiver_sort_code: receiver_sort_code,
+           receiver_account_name: receiver_account_name
          }
        ) do
     oban_job_params = %{
       amount: amount,
       account_id: account_id,
-      to_account_number: to_account_number,
-      to_sort_code: to_sort_code,
-      to_name: to_name,
+      receiver_account_number: receiver_account_number,
+      receiver_sort_code: receiver_sort_code,
+      receiver_account_name: receiver_account_name,
       payment_idempotency_key: payment_idempotency_key
     }
 
@@ -122,9 +122,9 @@ defmodule ExBank.Payments do
          %CreatePaymentRequest{
            account_id: account_id,
            amount: amount,
-           to_account_number: to_account_number,
-           to_sort_code: to_sort_code,
-           to_name: to_name
+           receiver_account_number: receiver_account_number,
+           receiver_sort_code: receiver_sort_code,
+           receiver_account_name: receiver_account_name
          }
        ) do
     Ecto.Multi.run(
@@ -133,10 +133,9 @@ defmodule ExBank.Payments do
       fn repo, %{send_payment_via_provider: %{id: payment_job_id}} ->
         new_transaction_params = %{
           amount: amount,
-          error: nil,
-          receiver: to_name,
-          receiver_account_number: to_account_number,
-          receiver_sort_code: to_sort_code,
+          receiver_account_name: receiver_account_name,
+          receiver_account_number: receiver_account_number,
+          receiver_sort_code: receiver_sort_code,
           state: :pending,
           account_id: account_id,
           payment_job_id: payment_job_id,

@@ -5,10 +5,10 @@ defmodule ExBank.Repo.Migrations.CreateTransactions do
     create table(:transactions) do
       add :amount, :decimal, null: false
       add :state, :string, null: false, default: Atom.to_string(:pending)
-      add :receiver, :string, null: false
+      add :receiver_account_name, :string, null: false
       add :receiver_sort_code, :string, null: false
       add :receiver_account_number, :string, null: false
-      add :error, :string
+      add :payment_error_message, :string
       add :payment_idempotency_key, :string, null: false
       add :payment_job_id, :integer, null: false
       add :account_id, references(:accounts, on_delete: :nothing), null: false

@@ -15,9 +15,9 @@ defmodule ExBank.PaymentsTest do
       Payments.send_money(%CreatePaymentRequest{
         account_id: account.id,
         amount: 30,
-        to_account_number: "123",
-        to_sort_code: "123",
-        to_name: "Bob"
+        receiver_account_number: "123",
+        receiver_sort_code: "123123",
+        receiver_account_name: "Bob"
       })
 
     assert transaction.amount == Decimal.new(30)
@@ -27,9 +27,9 @@ defmodule ExBank.PaymentsTest do
            args: %{
              "account_id" => 55,
              "amount" => 10,
-             "to_account_number" => "123",
-             "to_name" => "Bob",
-             "to_sort_code" => "123"
+             "receiver_account_number" => "123",
+             "receiver_account_name" => "Bob",
+             "receiver_sort_code" => "123"
            }
   end
 end

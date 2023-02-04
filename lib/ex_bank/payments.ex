@@ -95,7 +95,7 @@ defmodule ExBank.Payments do
 
         %Transaction{}
         |> Transaction.changeset(new_transaction_params)
-        |> repo.insert(
+        |> repo.insert()
       end
     )
   end

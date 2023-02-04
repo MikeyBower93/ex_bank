@@ -3,15 +3,15 @@ defmodule ExBank.Repo.Migrations.CreateTransactions do
 
   def change do
     create table(:transactions) do
-      add :amount, :decimal
-      add :state, :string
-      add :receiver, :string
-      add :receiver_sort_code, :string
-      add :receiver_account_number, :string
+      add :amount, :decimal, null: false
+      add :state, :string, null: false, default: "PENDING"
+      add :receiver, :string, null: false
+      add :receiver_sort_code, :string, null: false
+      add :receiver_account_number, :string, null: false
       add :error, :string
-      add :payment_idempotency_key, :string
-      add :payment_job_id, :integer
-      add :account_id, references(:accounts, on_delete: :nothing)
+      add :payment_idempotency_key, :string, null: false
+      add :payment_job_id, :integer, null: false
+      add :account_id, references(:accounts, on_delete: :nothing), null: false
 
       timestamps()
     end

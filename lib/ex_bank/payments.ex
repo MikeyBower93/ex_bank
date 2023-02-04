@@ -9,7 +9,7 @@ defmodule ExBank.Payments do
   alias ExBank.Payments.Jobs.SendPaymentViaProvider
 
   @doc """
-  Sends payment from an `account_id` to another bank account via a sort code, account number and name.
+  Sends payment from an `account_id` to another bank account to a sort code, account number and account name.
 
   Returns `{:ok, %Transaction{}}` where the transaction is the new created transaction.
   Returns `{:error, errors}` where the errors is a list of errors.

@@ -1,57 +1,27 @@
 defmodule ExBank.Payments do
   import Ecto.Query, warn: false
   alias ExBank.Repo
-  alias ExBank.Payments.{Account, Transaction}
+  alias ExBank.Payments.{Account, Transaction, CreatePaymentRequest}
   alias ExBank.Payments.Jobs.SendPaymentViaProvider
 
-  def send_money(
-        account_id,
-        amount,
-        to_account_number,
-        to_sort_code,
-        to_name
-      ) do
-    try do
-      do_send_money(account_id, amount, to_account_number, to_sort_code, to_name)
-    catch
-      _kind,
-      %Postgrex.Error{
-        postgres: %{
-          constraint: "balance_must_be_positive"
-        }
-      } ->
-        {:error, :not_enough_balance}
+  def send_money(%CreatePaymentRequest{} = create_payment_request) do
+    with {:valid, verified_create_payment_request} <-
+           CreatePaymentRequest.sanatize_and_verify(create_payment_request),
+         response <- do_send_money(verified_create_payment_request) do
+      response
+    else
+      error -> error
     end
   end
 
-  defp do_send_money(
-         account_id,
-         amount,
-         to_account_number,
-         to_sort_code,
-         to_name
-       ) do
+  defp do_send_money(%CreatePaymentRequest{} = create_payment_request) do
     payment_idempotency_key = Ecto.UUID.generate()
 
     Ecto.Multi.new()
-    |> prepare_update_balance_step(account_id, amount)
-    |> prepare_payment_job_step(
-      account_id,
-      amount,
-      to_account_number,
-      to_sort_code,
-      to_name,
-      payment_idempotency_key
-    )
-    |> prepare_create_transaction_step(
-      account_id,
-      amount,
-      to_account_number,
-      to_sort_code,
-      to_name,
-      payment_idempotency_key
-    )
-    |> Repo.transaction()
+    |> prepare_update_balance_step(create_payment_request)
+    |> prepare_payment_job_step(payment_idempotency_key, create_payment_request)
+    |> prepare_create_transaction_step(payment_idempotency_key, create_payment_request)
+    |> execute_masked_transaction()
     |> case do
       {:ok, %{create_transaction: new_transaction}} -> {:ok, new_transaction}
       {:error, _step, %Ecto.Changeset{errors: errors}, _rest} -> {:error, errors}
@@ -59,7 +29,27 @@ defmodule ExBank.Payments do
     end
   end
 
-  defp prepare_update_balance_step(multi, account_id, amount) do
+  def execute_masked_transaction(multi) do
+    try do
+      Repo.transaction(multi)
+    catch
+      _kind,
+      %Postgrex.Error{
+        postgres: %{
+          constraint: constraint
+        }
+      } ->
+        {:error, [constraint]}
+    end
+  end
+
+  defp prepare_update_balance_step(
+         multi,
+         %CreatePaymentRequest{
+           account_id: account_id,
+           amount: amount
+         }
+       ) do
     Ecto.Multi.update_all(
       multi,
       :update_balance,
@@ -68,14 +58,43 @@ defmodule ExBank.Payments do
     )
   end
 
+  defp prepare_payment_job_step(
+         multi,
+         payment_idempotency_key,
+         %CreatePaymentRequest{
+           account_id: account_id,
+           amount: amount,
+           to_account_number: to_account_number,
+           to_sort_code: to_sort_code,
+           to_name: to_name
+         }
+       ) do
+    oban_job_params = %{
+      amount: amount,
+      account_id: account_id,
+      to_account_number: to_account_number,
+      to_sort_code: to_sort_code,
+      to_name: to_name,
+      payment_idempotency_key: payment_idempotency_key
+    }
+
+    Oban.insert(
+      multi,
+      :send_payment_via_provider,
+      SendPaymentViaProvider.new(oban_job_params)
+    )
+  end
+
   defp prepare_create_transaction_step(
          multi,
-         account_id,
-         amount,
-         to_account_number,
-         to_sort_code,
-         to_name,
-         payment_idempotency_key
+         payment_idempotency_key,
+         %CreatePaymentRequest{
+           account_id: account_id,
+           amount: amount,
+           to_account_number: to_account_number,
+           to_sort_code: to_sort_code,
+           to_name: to_name
+         }
        ) do
     Ecto.Multi.run(
       multi,
@@ -97,31 +116,6 @@ defmodule ExBank.Payments do
         |> Transaction.changeset(new_transaction_params)
         |> repo.insert()
       end
-    )
-  end
-
-  defp prepare_payment_job_step(
-         multi,
-         account_id,
-         amount,
-         to_account_number,
-         to_sort_code,
-         to_name,
-         payment_idempotency_key
-       ) do
-    oban_job_params = %{
-      amount: amount,
-      account_id: account_id,
-      to_account_number: to_account_number,
-      to_sort_code: to_sort_code,
-      to_name: to_name,
-      payment_idempotency_key: payment_idempotency_key
-    }
-
-    Oban.insert(
-      multi,
-      :send_payment_via_provider,
-      SendPaymentViaProvider.new(oban_job_params)
     )
   end
 end

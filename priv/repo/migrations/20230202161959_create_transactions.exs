@@ -17,5 +17,7 @@ defmodule ExBank.Repo.Migrations.CreateTransactions do
     end
 
     create index(:transactions, [:account_id])
+    create index(:transactions, [:payment_idempotency_key])
+    create index(:transactions, [:payment_job_id])
   end
 end

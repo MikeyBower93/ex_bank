@@ -87,7 +87,7 @@ defmodule ExBank.Payments do
           receiver: to_name,
           receiver_account_number: to_account_number,
           receiver_sort_code: to_sort_code,
-          state: "PENDING",
+          state: :pending,
           account_id: account_id,
           payment_job_id: payment_job_id,
           payment_idempotency_key: payment_idempotency_key

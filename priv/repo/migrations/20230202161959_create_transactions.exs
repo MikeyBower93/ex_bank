@@ -4,7 +4,7 @@ defmodule ExBank.Repo.Migrations.CreateTransactions do
   def change do
     create table(:transactions) do
       add :amount, :decimal, null: false
-      add :state, :string, null: false, default: "PENDING"
+      add :state, :string, null: false, default: Atom.to_string(:pending)
       add :receiver, :string, null: false
       add :receiver_sort_code, :string, null: false
       add :receiver_account_number, :string, null: false

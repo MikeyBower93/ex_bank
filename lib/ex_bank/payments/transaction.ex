@@ -8,7 +8,7 @@ defmodule ExBank.Payments.Transaction do
     field :receiver, :string
     field :receiver_account_number, :string
     field :receiver_sort_code, :string
-    field :state, :string
+    field :state, Ecto.Enum, values: [:pending, :failed, :succeeding]
     field :account_id, :id
     field :payment_idempotency_key, :string
     field :payment_job_id, :integer

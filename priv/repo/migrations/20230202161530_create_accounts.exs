@@ -4,7 +4,7 @@ defmodule ExBank.Repo.Migrations.CreateAccounts do
   def change do
     create table(:accounts) do
       add :customer_name, :string, null: false
-      add :balance, :decimal, null: false, default: 0
+      add :balance, :numeric, null: false, default: 0
 
       timestamps()
     end

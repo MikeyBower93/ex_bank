@@ -2,7 +2,7 @@ defmodule ExBank.Payments.Jobs.SendPaymentViaProvider do
   use Oban.Worker
 
   alias ExBank.Payments
-  alias ExBank.Payments.Jobs.PaymentProviderClient
+  alias ExBank.Payments.Clients.PaymentProviderClient
 
   @impl Oban.Worker
   def perform(

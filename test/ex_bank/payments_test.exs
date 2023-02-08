@@ -14,6 +14,9 @@ defmodule ExBank.PaymentsTest do
     mock(fn
       %{method: :post, url: "https://payment_provider/transaction"} ->
         %Tesla.Env{status: 200}
+
+      %{method: :get} ->
+        %Tesla.Env{status: 200}
     end)
 
     :ok

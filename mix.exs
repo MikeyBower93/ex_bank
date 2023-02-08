@@ -52,7 +52,8 @@ defmodule ExBank.MixProject do
       {:oban, "~> 2.14"},
       {:tesla, "~> 1.5"},
       {:castore, "1.0.0", override: true},
-      {:hackney, "~> 1.17"}
+      {:hackney, "~> 1.17"},
+      {:fuse, "~> 2.5"}
     ]
   end
 

@@ -31,4 +31,6 @@ config :phoenix, :plug_init_mode, :runtime
 
 config :ex_bank, Oban, testing: :manual
 
+config :tesla, adapter: Tesla.Mock
+
 config :logger, level: :debug

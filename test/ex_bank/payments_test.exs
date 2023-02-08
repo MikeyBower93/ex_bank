@@ -6,7 +6,18 @@ defmodule ExBank.PaymentsTest do
   alias ExBank.Payments.{Account, CreatePaymentRequest}
   alias ExBank.Payments.Jobs.SendPaymentViaProvider
   alias ExBank.Repo
+
   import ExBank.PaymentsFixtures
+  import Tesla.Mock
+
+  setup do
+    mock(fn
+      %{method: :post, url: "https://payment_provider/transaction"} ->
+        %Tesla.Env{status: 200}
+    end)
+
+    :ok
+  end
 
   test "Can send money" do
     account = account_fixture(%{balance: 50})

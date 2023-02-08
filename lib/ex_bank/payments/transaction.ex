@@ -7,7 +7,7 @@ defmodule ExBank.Payments.Transaction do
     field :receiver_account_name, :string
     field :receiver_account_number, :string
     field :receiver_sort_code, :string
-    field :state, Ecto.Enum, values: [:pending, :failed, :succeeding]
+    field :state, Ecto.Enum, values: [:pending, :failed, :succeeded]
     field :account_id, :id
     field :payment_idempotency_key, :string
     field :payment_job_id, :integer
@@ -40,5 +40,19 @@ defmodule ExBank.Payments.Transaction do
       :account_id
     ])
     |> validate_format(:receiver_sort_code, ~r/[0-9]{6}/)
+  end
+
+  def completion_changeset(transaction) do
+    transaction
+    |> change()
+    |> put_change(:state, :succeeded)
+    |> put_change(:payment_error_message, nil)
+  end
+
+  def failure_changeset(transaction, error) do
+    transaction
+    |> change()
+    |> put_change(:state, :failed)
+    |> put_change(:payment_error_message, error)
   end
 end

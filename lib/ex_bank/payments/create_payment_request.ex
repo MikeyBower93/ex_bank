@@ -1,5 +1,12 @@
 defmodule ExBank.Payments.CreatePaymentRequest do
-  defstruct [:account_id, :amount, :receiver_account_number, :receiver_sort_code, :receiver_account_name]
+  defstruct [
+    :account_id,
+    :amount,
+    :receiver_account_number,
+    :receiver_sort_code,
+    :receiver_account_name
+  ]
+
   alias ExBank.Payments.CreatePaymentRequest
 
   @types %{

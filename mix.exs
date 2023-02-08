@@ -49,7 +49,10 @@ defmodule ExBank.MixProject do
       {:gettext, "~> 0.18"},
       {:jason, "~> 1.2"},
       {:plug_cowboy, "~> 2.5"},
-      {:oban, "~> 2.14"}
+      {:oban, "~> 2.14"},
+      {:tesla, "~> 1.5"},
+      {:castore, "1.0.0", override: true},
+      {:hackney, "~> 1.17"}
     ]
   end
 

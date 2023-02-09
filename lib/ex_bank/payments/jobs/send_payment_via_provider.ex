@@ -5,17 +5,15 @@ defmodule ExBank.Payments.Jobs.SendPaymentViaProvider do
   alias ExBank.Payments.Clients.PaymentProviderClient
 
   @impl Oban.Worker
-  def perform(
-        %Oban.Job{
-          args: %{
-            payment_idempotency_key: payment_idempotency_key
-          }
-        } = args
-      ) do
+  def perform(%Oban.Job{
+        args: args
+      }) do
     # Check to see if the transaction already exists
     # in cases of this job being cancelled due to a container crash
     # half through the job
-    payment_idempotency_key
+    args = Map.new(args, fn {k, v} -> {String.to_existing_atom(k), v} end)
+
+    args.payment_idempotency_key
     |> PaymentProviderClient.get_transaction()
     |> maybe_send_money(args)
   end
@@ -32,7 +30,7 @@ defmodule ExBank.Payments.Jobs.SendPaymentViaProvider do
     %{
       account_name: sender_account_name,
       account_number: sender_account_number,
-      sort_code: sender_sort_code
+      account_sort_code: sender_sort_code
     } = Payments.get_account(account_id)
 
     %{

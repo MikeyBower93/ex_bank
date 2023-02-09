@@ -97,4 +97,106 @@ defmodule ExBank.PaymentsTest do
              state: :succeeded
            } = updated_transaction
   end
+
+  test "Checks if provider already processed transactions (in cases of mid job crashes)" do
+    # Setup
+    %{id: account_id} = account_fixture(%{balance: 50})
+
+    # Execution
+    {:ok, created_transaction} =
+      Payments.send_money(%CreatePaymentRequest{
+        account_id: account_id,
+        amount: 30,
+        receiver_account_number: "123",
+        receiver_sort_code: "123123",
+        receiver_account_name: "Bob"
+      })
+
+    [queued_payment_job] = all_enqueued()
+
+    expected_transaction_get_url =
+      "https://payment_provider/transaction/#{created_transaction.payment_idempotency_key}"
+
+    # By not mocking the post, we ensure that the payment provider isn't receiving a post
+    # because if it did, it would return failure with no mock set.
+    mock(fn
+      %{method: :get, url: ^expected_transaction_get_url} ->
+        # Do a 404 to ensure a transaction is created
+        %Tesla.Env{status: 200}
+    end)
+
+    assert :ok = perform_job(SendPaymentViaProvider, queued_payment_job.args)
+
+    updated_transaction = Repo.get!(Transaction, created_transaction.id)
+
+    # Verify that transaction has been set as suceeded
+    assert %{
+             state: :succeeded
+           } = updated_transaction
+  end
+
+  test "Not enough funds doesnt produce transaction" do
+    # Setup
+    %{id: account_id} = account_fixture(%{balance: 50})
+
+    # Execution
+    {:error, ["balance_must_be_positive"]} =
+      Payments.send_money(%CreatePaymentRequest{
+        account_id: account_id,
+        amount: 60,
+        receiver_account_number: "123",
+        receiver_sort_code: "123123",
+        receiver_account_name: "Bob"
+      })
+
+    # Assert nothing committed in transaction.
+    assert [] = all_enqueued()
+    updated_account = Repo.get!(Account, account_id)
+    assert updated_account.balance == Decimal.new(50)
+    assert [] = Repo.all(Transaction)
+  end
+
+  test "Bad request from payment provider results in compensation transaction" do
+    # Setup
+    %{id: account_id} = account_fixture(%{balance: 50})
+
+    # Execution
+    {:ok, created_transaction} =
+      Payments.send_money(%CreatePaymentRequest{
+        account_id: account_id,
+        amount: 30,
+        receiver_account_number: "123",
+        receiver_sort_code: "123123",
+        receiver_account_name: "Bob"
+      })
+
+    [queued_payment_job] = all_enqueued()
+
+    expected_transaction_get_url =
+      "https://payment_provider/transaction/#{created_transaction.payment_idempotency_key}"
+
+    # By not mocking the post, we ensure that the payment provider isn't receiving a post
+    # because if it did, it would return failure with no mock set.
+    mock(fn
+      %{method: :post, url: "https://payment_provider/transaction"} ->
+        %Tesla.Env{status: 400, body: "This transaction cannot happen!"}
+
+      %{method: :get, url: ^expected_transaction_get_url} ->
+        # Do a 404 to ensure a transaction is created
+        %Tesla.Env{status: 404}
+    end)
+
+    assert :ok = perform_job(SendPaymentViaProvider, queued_payment_job.args)
+
+    updated_transaction = Repo.get!(Transaction, created_transaction.id)
+    updated_account = Repo.get!(Account, account_id)
+
+    # Verify that transaction has been set as suceeded
+    assert %{
+             state: :failed,
+             payment_error_message: "This transaction cannot happen!"
+           } = updated_transaction
+
+    assert updated_account.balance == Decimal.new(50)
+  end
 end
